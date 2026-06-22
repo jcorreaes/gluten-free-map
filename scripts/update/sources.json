@@ -1,0 +1,44 @@
+[
+  {
+    "id": "gf_internacional",
+    "type": "mymaps",
+    "url": "https://www.google.com/maps/d/u/0/viewer?mid=1Hi800OmeH5SQYbjxOEOIKLxkO7yB48Y",
+    "name": "GF Social Internacional",
+    "output": "gf_internacional.csv",
+    "notes": "Mapa público internacional. Titular: comunidad Gluten Free Social."
+  },
+  {
+    "id": "gf_esp_ita_por",
+    "type": "mymaps",
+    "url": "https://www.google.com/maps/d/u/0/viewer?mid=15R-QwBeH48riYRcscfmk3JUeZ-2FM00",
+    "name": "GF Social ESP/ITA/POR",
+    "output": "gf_esp_ita_por.csv",
+    "notes": "Mapa público España, Italia y Portugal."
+  },
+  {
+    "id": "lista_personal",
+    "type": "savedlist",
+    "list_id": "tlScaqRZmK3Q6unrCf4p0u_-0Xuykg",
+    "map_url": "https://www.google.com/maps/@34.3897775,-16.0434221,8z/data=!3m1!1e3!4m6!1m2!10m1!1e1!11m2!2stlScaqRZmK3Q6unrCf4p0u_-0Xuykg!3e3",
+    "name": "Lista personal Gluten-free",
+    "output": "lista_personal_glutenfree.csv",
+    "notes": "Lista privada Google Maps. Requiere cookies autenticadas."
+  },
+  {
+    "id": "singluten_canarias",
+    "type": "savedlist",
+    "list_id": "JhyV-IMBcP4YGNJ7_SGlyrHqb-Pf3w",
+    "map_url": "https://www.google.com/maps/@28.3577975,-16.461369,9z/data=!3m1!1e3!4m6!1m2!10m1!1e1!11m2!2sJhyV-IMBcP4YGNJ7_SGlyrHqb-Pf3w!3e3",
+    "name": "Sin gluten Canarias",
+    "output": "lista_singluten_canarias.csv",
+    "notes": "Lista de Sergio Sánchez - AVATARA. Requiere cookies."
+  },
+  {
+    "id": "singlu",
+    "type": "singlu",
+    "domain": "singlu.io",
+    "name": "SinGlu",
+    "output": "singlu.csv",
+    "notes": "API GraphQL pública (api.v3.wilbby.com). ~1300 establecimientos. Sin autenticación."
+  }
+]
