@@ -12,17 +12,26 @@ export type Place = {
   lng: number;
   categoria: string;
   capa: string;
+  mapa: string;
 };
 
 const LAYER_COLORS: Record<string, string> = {
   "CERTIFICADOS / CERTIFIED": "#16a34a",
+  "Opiniones": "#2563eb",
   "Opinions": "#2563eb",
   "ASOC. Opinions": "#9333ea",
+  "Supporters": "#f59e0b",
+};
+
+const MAP_LABELS: Record<string, string> = {
+  "GF Social Internacional": "🌍 Internacional",
+  "GF Social ESP/ITA/POR": "🇪🇸🇮🇹🇵🇹 España / Italia / Portugal",
 };
 
 export default function MapApp() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [search, setSearch] = useState("");
+  const [selectedMaps, setSelectedMaps] = useState<Set<string>>(new Set());
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(new Set());
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
 
@@ -40,37 +49,30 @@ export default function MapApp() {
       });
   }, []);
 
-  const layers = useMemo(() => [...new Set(places.map((p) => p.capa))].sort(), [places]);
+  const maps = useMemo(() => [...new Set(places.map((p) => p.mapa))].sort(), [places]);
+  const layers = useMemo(() => [...new Set(places.map((p) => p.capa))].filter(Boolean).sort(), [places]);
   const categories = useMemo(
-    () =>
-      [...new Set(places.map((p) => p.categoria.trim()))].filter(Boolean).sort(),
+    () => [...new Set(places.map((p) => p.categoria?.trim()))].filter(Boolean).sort(),
     [places]
   );
 
   const filtered = useMemo(() => {
     return places.filter((p) => {
+      if (selectedMaps.size > 0 && !selectedMaps.has(p.mapa)) return false;
       if (selectedLayers.size > 0 && !selectedLayers.has(p.capa)) return false;
-      if (selectedCategories.size > 0 && !selectedCategories.has(p.categoria.trim())) return false;
+      if (selectedCategories.size > 0 && !selectedCategories.has(p.categoria?.trim())) return false;
       if (search && !p.nombre.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [places, selectedLayers, selectedCategories, search]);
+  }, [places, selectedMaps, selectedLayers, selectedCategories, search]);
 
-  function toggleLayer(l: string) {
-    setSelectedLayers((prev) => {
-      const next = new Set(prev);
-      next.has(l) ? next.delete(l) : next.add(l);
-      return next;
-    });
+  function toggle<T>(set: Set<T>, val: T, setter: (s: Set<T>) => void) {
+    const next = new Set(set);
+    next.has(val) ? next.delete(val) : next.add(val);
+    setter(next);
   }
 
-  function toggleCategory(c: string) {
-    setSelectedCategories((prev) => {
-      const next = new Set(prev);
-      next.has(c) ? next.delete(c) : next.add(c);
-      return next;
-    });
-  }
+  const hasFilters = selectedMaps.size > 0 || selectedLayers.size > 0 || selectedCategories.size > 0 || search;
 
   return (
     <div className="flex h-full w-full overflow-hidden">
@@ -78,7 +80,7 @@ export default function MapApp() {
       <aside className="w-72 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-hidden shadow-sm">
         <div className="p-4 border-b border-gray-100 bg-green-700 text-white">
           <h1 className="text-base font-bold leading-tight">🌾 Gluten Free Social</h1>
-          <p className="text-xs text-green-200 mt-0.5">{filtered.length} / {places.length} lugares</p>
+          <p className="text-xs text-green-200 mt-0.5">{filtered.length.toLocaleString()} / {places.length.toLocaleString()} lugares</p>
         </div>
 
         <div className="p-3 border-b border-gray-100">
@@ -93,13 +95,28 @@ export default function MapApp() {
 
         <div className="flex-1 overflow-y-auto">
           <div className="p-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Mapas</p>
+            {maps.map((m) => (
+              <label key={m} className="flex items-center gap-2 py-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedMaps.has(m)}
+                  onChange={() => toggle(selectedMaps, m, setSelectedMaps)}
+                  className="rounded"
+                />
+                <span className="text-xs text-gray-700 leading-tight">{MAP_LABELS[m] ?? m}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className="p-3 border-t border-gray-100">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Capas</p>
             {layers.map((l) => (
               <label key={l} className="flex items-center gap-2 py-1 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={selectedLayers.has(l)}
-                  onChange={() => toggleLayer(l)}
+                  onChange={() => toggle(selectedLayers, l, setSelectedLayers)}
                   className="rounded"
                 />
                 <span
@@ -118,7 +135,7 @@ export default function MapApp() {
                 <input
                   type="checkbox"
                   checked={selectedCategories.has(c)}
-                  onChange={() => toggleCategory(c)}
+                  onChange={() => toggle(selectedCategories, c, setSelectedCategories)}
                   className="rounded"
                 />
                 <span className="text-xs text-gray-700">{c}</span>
@@ -127,10 +144,11 @@ export default function MapApp() {
           </div>
         </div>
 
-        {(selectedLayers.size > 0 || selectedCategories.size > 0 || search) && (
+        {hasFilters && (
           <div className="p-3 border-t border-gray-100">
             <button
               onClick={() => {
+                setSelectedMaps(new Set());
                 setSelectedLayers(new Set());
                 setSelectedCategories(new Set());
                 setSearch("");
