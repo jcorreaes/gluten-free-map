@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Papa from "papaparse";
 import dynamic from "next/dynamic";
 
@@ -13,6 +13,7 @@ export type Place = {
   categoria: string;
   capa: string;
   mapa: string;
+  direccion?: string;
 };
 
 const LAYER_COLORS: Record<string, string> = {
@@ -32,12 +33,20 @@ const MAP_LABELS: Record<string, string> = {
   "Sin gluten Canarias": "🌴 Sin gluten Canarias",
 };
 
+function getColor(capa: string, mapa: string) {
+  return LAYER_COLORS[capa] ?? LAYER_COLORS[mapa] ?? "#6b7280";
+}
+
 export default function MapApp() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [search, setSearch] = useState("");
   const [selectedMaps, setSelectedMaps] = useState<Set<string>>(new Set());
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(new Set());
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+
+  const mapaRefs = useRef<Record<string, HTMLLabelElement | null>>({});
+  const sidebarScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetch("/data/gluten_free_map.csv")
@@ -52,6 +61,15 @@ export default function MapApp() {
         setPlaces(parsed);
       });
   }, []);
+
+  // Scroll sidebar to the mapa row when a place is selected
+  useEffect(() => {
+    if (!selectedPlace) return;
+    const el = mapaRefs.current[selectedPlace.mapa];
+    if (el && sidebarScrollRef.current) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedPlace]);
 
   const maps = useMemo(() => [...new Set(places.map((p) => p.mapa))].sort(), [places]);
   const layers = useMemo(() => [...new Set(places.map((p) => p.capa))].filter(Boolean).sort(), [places]);
@@ -84,7 +102,9 @@ export default function MapApp() {
       <aside className="w-72 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-hidden shadow-sm">
         <div className="p-4 border-b border-gray-100 bg-green-700 text-white">
           <h1 className="text-base font-bold leading-tight">🌾 Gluten Free Social</h1>
-          <p className="text-xs text-green-200 mt-0.5">{filtered.length.toLocaleString()} / {places.length.toLocaleString()} lugares</p>
+          <p className="text-xs text-green-200 mt-0.5">
+            {filtered.length.toLocaleString()} / {places.length.toLocaleString()} lugares
+          </p>
         </div>
 
         <div className="p-3 border-b border-gray-100">
@@ -97,23 +117,78 @@ export default function MapApp() {
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-3">
+        {/* Selected place card */}
+        {selectedPlace && (
+          <div
+            className="mx-3 mt-3 rounded-lg border p-3 text-xs"
+            style={{
+              borderColor: getColor(selectedPlace.capa, selectedPlace.mapa),
+              background: getColor(selectedPlace.capa, selectedPlace.mapa) + "12",
+            }}
+          >
+            <div className="flex items-start justify-between gap-1">
+              <p className="font-semibold text-gray-800 leading-tight">{selectedPlace.nombre}</p>
+              <button
+                onClick={() => setSelectedPlace(null)}
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0 leading-none mt-0.5"
+                aria-label="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ background: getColor(selectedPlace.capa, selectedPlace.mapa) }}
+              />
+              <span className="text-gray-600">{MAP_LABELS[selectedPlace.mapa] ?? selectedPlace.mapa}</span>
+            </div>
+            {selectedPlace.capa && (
+              <p className="mt-0.5 text-gray-500 pl-3.5">{selectedPlace.capa}</p>
+            )}
+            {selectedPlace.categoria && (
+              <p className="mt-0.5 text-gray-500 pl-3.5">{selectedPlace.categoria}</p>
+            )}
+            {selectedPlace.direccion && (
+              <p className="mt-0.5 text-gray-400 pl-3.5 leading-tight">{selectedPlace.direccion}</p>
+            )}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto mt-3" ref={sidebarScrollRef}>
+          <div className="px-3 pb-2">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Mapas</p>
-            {maps.map((m) => (
-              <label key={m} className="flex items-center gap-2 py-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedMaps.has(m)}
-                  onChange={() => toggle(selectedMaps, m, setSelectedMaps)}
-                  className="rounded"
-                />
-                <span className="text-xs text-gray-700 leading-tight">{MAP_LABELS[m] ?? m}</span>
-              </label>
-            ))}
+            {maps.map((m) => {
+              const isActive = selectedPlace?.mapa === m;
+              return (
+                <label
+                  key={m}
+                  ref={(el) => { mapaRefs.current[m] = el; }}
+                  className={`flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer transition-colors ${
+                    isActive ? "bg-gray-100 font-medium" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedMaps.has(m)}
+                    onChange={() => toggle(selectedMaps, m, setSelectedMaps)}
+                    className="rounded"
+                  />
+                  {isActive && (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ background: getColor("", m) }}
+                    />
+                  )}
+                  <span className={`text-xs leading-tight ${isActive ? "text-gray-900" : "text-gray-700"}`}>
+                    {MAP_LABELS[m] ?? m}
+                  </span>
+                </label>
+              );
+            })}
           </div>
 
-          <div className="p-3 border-t border-gray-100">
+          <div className="px-3 pb-2 border-t border-gray-100 pt-2">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Capas</p>
             {layers.map((l) => (
               <label key={l} className="flex items-center gap-2 py-1 cursor-pointer">
@@ -132,7 +207,7 @@ export default function MapApp() {
             ))}
           </div>
 
-          <div className="p-3 border-t border-gray-100">
+          <div className="px-3 pb-3 border-t border-gray-100 pt-2">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Categorías</p>
             {categories.map((c) => (
               <label key={c} className="flex items-center gap-2 py-0.5 cursor-pointer">
@@ -172,7 +247,12 @@ export default function MapApp() {
             Cargando datos...
           </div>
         ) : (
-          <MapView places={filtered} layerColors={LAYER_COLORS} />
+          <MapView
+            places={filtered}
+            layerColors={LAYER_COLORS}
+            selectedPlace={selectedPlace}
+            onSelect={setSelectedPlace}
+          />
         )}
       </div>
     </div>
