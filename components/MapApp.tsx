@@ -401,19 +401,24 @@ export default function MapApp() {
         }}
       >
         {/* Card body */}
-        <div className="mx-5 pt-5 pb-5">
+        <div className="mx-4 pt-8 pb-8 px-4">
 
           {/* Name + distance in same row */}
           <div className="flex items-start gap-3 mb-4">
             <h2 className="flex-1 text-[17px] font-bold text-gray-900 leading-snug">
               {currentPlace.nombre}
             </h2>
-            {dist && (
+            {routeInfo ? (
+              <div className="flex-shrink-0 text-right">
+                <p className="text-2xl font-black text-blue-600 leading-none tracking-tight">{fmtRouteDist(routeInfo.distance)}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{fmtDuration(routeInfo.duration)} · {routeMode === "driving" ? "🚗" : "🚶"}</p>
+              </div>
+            ) : dist ? (
               <div className="flex-shrink-0 text-right">
                 <p className="text-2xl font-black text-green-600 leading-none tracking-tight">{dist}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">de tu posición</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">en línea recta</p>
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Details */}
@@ -423,7 +428,7 @@ export default function MapApp() {
                 {currentPlace.gf_nivel === "100%" ? "🌿 100% sin gluten" : "🍃 Opciones sin gluten"}
               </p>
             )}
-            {currentPlace.categoria && (
+            {currentPlace.categoria && !/cert|100%|opcion/i.test(currentPlace.categoria) && (
               <p className="truncate">{currentPlace.categoria}</p>
             )}
             {currentPlace.direccion && (
@@ -435,21 +440,6 @@ export default function MapApp() {
               <p className="text-xs text-gray-500">📞 {currentPlace.telefono}</p>
             )}
           </div>
-
-          {/* Google Maps link */}
-          {currentPlace.gmaps_url && (
-            <a
-              href={currentPlace.gmaps_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-gray-700 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
-              </svg>
-              Ver en Google Maps
-            </a>
-          )}
 
           {/* Route info */}
           {routeInfo ? (
@@ -476,6 +466,31 @@ export default function MapApp() {
               Calculando ruta…
             </div>
           )}
+
+          {/* Google Maps buttons */}
+          <div className="mt-3 flex gap-2">
+            <a
+              href={currentPlace.gmaps_url ?? `https://www.google.com/maps/search/?api=1&query=${currentPlace.lat},${currentPlace.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-gray-700 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+              </svg>
+              Ver lugar
+            </a>
+            {userPos && (
+              <a
+                href={`https://www.google.com/maps/dir/${userPos[0]},${userPos[1]}/${currentPlace.lat},${currentPlace.lng}/?travelmode=${routeMode === "driving" ? "driving" : "walking"}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-xs font-semibold text-blue-700 transition-colors"
+              >
+                {routeMode === "driving" ? "🚗" : "🚶"} Cómo llegar
+              </a>
+            )}
+          </div>
         </div>
 
         {/* Navigation bar */}

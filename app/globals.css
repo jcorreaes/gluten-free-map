@@ -21,12 +21,31 @@ body {
   height: 100%;
 }
 
-@keyframes user-pulse {
-  0%   { transform: scale(1);   opacity: 0.6; }
-  70%  { transform: scale(2.8); opacity: 0; }
-  100% { transform: scale(2.8); opacity: 0; }
+@keyframes user-heartbeat {
+  0%   { transform: scale(1);    opacity: 0.55; }
+  18%  { transform: scale(1.45); opacity: 0.4;  }
+  34%  { transform: scale(1.15); opacity: 0.5;  }
+  52%  { transform: scale(1.7);  opacity: 0.15; }
+  75%  { transform: scale(1);    opacity: 0.55; }
+  100% { transform: scale(1);    opacity: 0.55; }
 }
 
-.user-pulse {
-  animation: user-pulse 2s ease-out infinite;
+.user-location-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.3);
+  animation: user-heartbeat 1.6s ease-in-out infinite;
+}
+
+.user-location-dot {
+  width: 19px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 4px solid #fff;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }

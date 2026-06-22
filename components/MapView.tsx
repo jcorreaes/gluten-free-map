@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
-import { MapContainer, TileLayer, CircleMarker, Polyline, Pane, useMap } from "react-leaflet";
+import L from "leaflet";
+import { MapContainer, TileLayer, CircleMarker, Marker, Polyline, Pane, useMap } from "react-leaflet";
+
+const userIcon = L.divIcon({
+  className: "",
+  html: `<div style="position:relative;width:54px;height:54px"><div class="user-location-ring"></div><div class="user-location-dot"></div></div>`,
+  iconSize: [54, 54],
+  iconAnchor: [27, 27],
+});
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { type PlaceWithDist } from "./MapApp";
 
@@ -31,7 +39,7 @@ function GradientPolyline({ positions, color, weight, dashArray }: {
       {Array.from({ length: segments }, (_, i) => {
         const start = Math.floor((i / segments) * (n - 1));
         const end = Math.floor(((i + 1) / segments) * (n - 1));
-        const opacity = 0.9 - (i / (segments - 1)) * 0.8;
+        const opacity = 0.2 + (i / (segments - 1)) * 0.7;
         return (
           <Polyline
             key={i}
@@ -78,22 +86,23 @@ export default function MapView({ places, layerColors, selectedPlace, onSelect, 
         )}
       </Pane>
 
-      {/* User position */}
+      {/* User position — always visible, never clustered */}
       {userPosition && (
-        <>
-          <CircleMarker
-            center={userPosition}
-            radius={14}
-            pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.15, weight: 0 }}
-            className="user-pulse"
-          />
-          <CircleMarker
-            center={userPosition}
-            radius={6}
-            pathOptions={{ color: "#fff", fillColor: "#3b82f6", fillOpacity: 1, weight: 2.5 }}
-          />
-        </>
+        <Marker position={userPosition} icon={userIcon} zIndexOffset={1000} />
       )}
+
+      {/* Selected place — always visible, never clustered */}
+      {selectedPlace && (() => {
+        const color = layerColors[selectedPlace.capa] ?? layerColors[selectedPlace.mapa] ?? "#6b7280";
+        return (
+          <CircleMarker
+            center={[selectedPlace.lat, selectedPlace.lng]}
+            radius={12}
+            pathOptions={{ color: "#fff", fillColor: color, fillOpacity: 1, weight: 3 }}
+            eventHandlers={{ click: () => onSelect(selectedPlace) }}
+          />
+        );
+      })()}
 
       <MarkerClusterGroup chunkedLoading disableClusteringAtZoom={12}>
         {places.map((p, i) => {
@@ -101,18 +110,14 @@ export default function MapView({ places, layerColors, selectedPlace, onSelect, 
             selectedPlace?.nombre === p.nombre &&
             selectedPlace?.lat === p.lat &&
             selectedPlace?.lng === p.lng;
+          if (isSelected) return null;
           const color = layerColors[p.capa] ?? layerColors[p.mapa] ?? "#6b7280";
           return (
             <CircleMarker
               key={i}
               center={[p.lat, p.lng]}
-              radius={isSelected ? 12 : 8}
-              pathOptions={{
-                color: "#fff",
-                fillColor: color,
-                fillOpacity: isSelected ? 1 : 0.9,
-                weight: isSelected ? 3 : 1.5,
-              }}
+              radius={8}
+              pathOptions={{ color: "#fff", fillColor: color, fillOpacity: 0.9, weight: 1.5 }}
               eventHandlers={{ click: () => onSelect(p) }}
             />
           );
