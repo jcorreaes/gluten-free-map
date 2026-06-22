@@ -333,7 +333,7 @@ export default function MapApp() {
     );
   })();
 
-  function placeList(sentinel: React.RefObject<HTMLDivElement>) {
+  function placeList(sentinel: React.RefObject<HTMLDivElement | null>) {
     return (
       <>
         {places.length === 0 ? (
