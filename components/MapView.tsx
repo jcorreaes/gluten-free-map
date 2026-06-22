@@ -28,8 +28,8 @@ export default function MapView({ places, layerColors }: Props) {
             center={[p.lat, p.lng]}
             radius={7}
             pathOptions={{
-              color: layerColors[p.capa] ?? "#6b7280",
-              fillColor: layerColors[p.capa] ?? "#6b7280",
+              color: layerColors[p.capa] ?? layerColors[p.mapa] ?? "#6b7280",
+              fillColor: layerColors[p.capa] ?? layerColors[p.mapa] ?? "#6b7280",
               fillOpacity: 0.85,
               weight: 1.5,
             }}

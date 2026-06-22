@@ -21,11 +21,15 @@ const LAYER_COLORS: Record<string, string> = {
   "Opinions": "#2563eb",
   "ASOC. Opinions": "#9333ea",
   "Supporters": "#f59e0b",
+  "Lista personal Gluten-free": "#dc2626",
+  "Sin gluten Canarias": "#ea580c",
 };
 
 const MAP_LABELS: Record<string, string> = {
   "GF Social Internacional": "🌍 Internacional",
   "GF Social ESP/ITA/POR": "🇪🇸🇮🇹🇵🇹 España / Italia / Portugal",
+  "Lista personal Gluten-free": "⭐ Lista personal Gluten-free",
+  "Sin gluten Canarias": "🌴 Sin gluten Canarias",
 };
 
 export default function MapApp() {
