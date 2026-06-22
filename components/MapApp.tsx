@@ -13,7 +13,13 @@ export type Place = {
   categoria: string;
   capa: string;
   mapa: string;
+  lista: string;
   direccion?: string;
+  gf_nivel?: string;
+  certificado?: string;
+  web?: string;
+  telefono?: string;
+  gmaps_url?: string;
 };
 
 export type PlaceWithDist = Place & { dist: number };
@@ -67,6 +73,8 @@ export default function MapApp() {
   const [selectedMaps, setSelectedMaps]   = useState<Set<string>>(new Set());
   const [selectedLayers, setSelectedLayers] = useState<Set<string>>(new Set());
   const [selectedCats, setSelectedCats]   = useState<Set<string>>(new Set());
+  const [onlyCertified, setOnlyCertified] = useState(false);
+  const [selectedGfNivel, setSelectedGfNivel] = useState<Set<string>>(new Set());
   const [page, setPage]                   = useState(1);
   const [sheetOpen, setSheetOpen]         = useState(false);
 
@@ -130,11 +138,13 @@ export default function MapApp() {
         if (selectedMaps.size && !selectedMaps.has(p.mapa)) return false;
         if (selectedLayers.size && !selectedLayers.has(p.capa)) return false;
         if (selectedCats.size && !selectedCats.has(p.categoria?.trim())) return false;
+        if (selectedGfNivel.size && !selectedGfNivel.has(p.gf_nivel ?? "")) return false;
+        if (onlyCertified && p.certificado !== "si") return false;
         if (search && !p.nombre.toLowerCase().includes(search.toLowerCase())) return false;
         return true;
       })
       .sort((a, b) => a.dist - b.dist),
-    [withDist, selectedMaps, selectedLayers, selectedCats, search]
+    [withDist, selectedMaps, selectedLayers, selectedCats, selectedGfNivel, onlyCertified, search]
   );
 
   useEffect(() => {
@@ -171,7 +181,7 @@ export default function MapApp() {
   const layers     = useMemo(() => [...new Set(places.map((p) => p.capa))].filter(Boolean).sort(), [places]);
   const categories = useMemo(() => [...new Set(places.map((p) => p.categoria?.trim()))].filter(Boolean).sort(), [places]);
 
-  const activeFilters = selectedMaps.size + selectedLayers.size + selectedCats.size + (search ? 1 : 0);
+  const activeFilters = selectedMaps.size + selectedLayers.size + selectedCats.size + selectedGfNivel.size + (onlyCertified ? 1 : 0) + (search ? 1 : 0);
 
   // ── Shared sub-trees ──────────────────────────────────────────────────────
 
@@ -203,6 +213,22 @@ export default function MapApp() {
       </div>
 
       <div className="px-3 pb-3 border-t border-gray-100 pt-2">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Sin gluten</p>
+        {(["100%", "opciones"] as const).map((v) => (
+          <label key={v} className="flex items-center gap-2 py-1 cursor-pointer">
+            <input type="checkbox" checked={selectedGfNivel.has(v)} onChange={() => toggle(selectedGfNivel, v, setSelectedGfNivel)} className="rounded" />
+            <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${v === "100%" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+              {v === "100%" ? "100% sin gluten" : "Opciones GF"}
+            </span>
+          </label>
+        ))}
+        <label className="flex items-center gap-2 py-1 cursor-pointer">
+          <input type="checkbox" checked={onlyCertified} onChange={() => setOnlyCertified((v) => !v)} className="rounded" />
+          <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">✓ Solo certificados</span>
+        </label>
+      </div>
+
+      <div className="px-3 pb-3 border-t border-gray-100 pt-2">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Capas</p>
         {layers.map((l) => (
           <label key={l} className="flex items-center gap-2 py-1 cursor-pointer">
@@ -226,7 +252,7 @@ export default function MapApp() {
       {activeFilters > 0 && (
         <div className="px-3 pb-4">
           <button
-            onClick={() => { setSelectedMaps(new Set()); setSelectedLayers(new Set()); setSelectedCats(new Set()); setSearch(""); }}
+            onClick={() => { setSelectedMaps(new Set()); setSelectedLayers(new Set()); setSelectedCats(new Set()); setSelectedGfNivel(new Set()); setOnlyCertified(false); setSearch(""); }}
             type="button"
             className="w-full py-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50"
           >
@@ -237,32 +263,75 @@ export default function MapApp() {
     </div>
   );
 
-  const selectedCard = selectedPlace && (
-    <div
-      className="m-3 rounded-lg border p-3 text-xs"
-      style={{
-        borderColor: getColor(selectedPlace.capa, selectedPlace.mapa),
-        background: getColor(selectedPlace.capa, selectedPlace.mapa) + "14",
-      }}
-    >
-      <div className="flex items-start justify-between gap-1">
-        <p className="font-semibold text-gray-800 leading-tight">{selectedPlace.nombre}</p>
-        <button type="button" onClick={() => setSelectedPlace(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0">✕</button>
+  const selectedCard = selectedPlace && (() => {
+    const color = getColor(selectedPlace.capa, selectedPlace.mapa);
+    return (
+      <div className="m-3 rounded-lg border p-3 text-xs" style={{ borderColor: color, background: color + "14" }}>
+
+        {/* Nombre + cerrar */}
+        <div className="flex items-start justify-between gap-1">
+          <p className="font-semibold text-gray-800 leading-tight text-sm">{selectedPlace.nombre}</p>
+          <button type="button" onClick={() => setSelectedPlace(null)} className="text-gray-400 hover:text-gray-600 flex-shrink-0 ml-1">✕</button>
+        </div>
+
+        {/* Badges gf_nivel + certificado */}
+        {(selectedPlace.gf_nivel || selectedPlace.certificado === "si") && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {selectedPlace.gf_nivel === "100%" && (
+              <span className="px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold text-[10px]">100% sin gluten</span>
+            )}
+            {selectedPlace.gf_nivel === "opciones" && (
+              <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold text-[10px]">Opciones GF</span>
+            )}
+            {selectedPlace.certificado === "si" && (
+              <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold text-[10px]">✓ Certificado</span>
+            )}
+          </div>
+        )}
+
+        {/* Fuente + capa + categoría + distancia */}
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+          <span className="text-gray-500">{MAP_LABELS[selectedPlace.mapa] ?? selectedPlace.mapa}</span>
+        </div>
+        {selectedPlace.capa      && <p className="mt-0.5 text-gray-400 pl-3.5">{selectedPlace.capa}</p>}
+        {selectedPlace.categoria && <p className="mt-0.5 text-gray-400 pl-3.5">{selectedPlace.categoria}</p>}
+        {selectedPlace.dist !== Infinity && (
+          <p className="mt-0.5 text-gray-400 pl-3.5">{fmtDist(selectedPlace.dist)} · a tu posición</p>
+        )}
+
+        {/* Datos de contacto */}
+        {selectedPlace.direccion && (
+          <p className="mt-2 text-gray-600 leading-tight">{selectedPlace.direccion}</p>
+        )}
+        {selectedPlace.telefono && (
+          <a href={`tel:${selectedPlace.telefono}`} className="mt-1 flex items-center gap-1.5 text-blue-600 hover:underline">
+            <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
+            {selectedPlace.telefono}
+          </a>
+        )}
+        {selectedPlace.web && (
+          <a href={selectedPlace.web} target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center gap-1.5 text-blue-600 hover:underline truncate">
+            <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16A8 8 0 0010 2zm0 2c-.076 0-.232.032-.465.262-.238.234-.497.623-.737 1.182-.389.907-.673 2.142-.766 3.556h3.936c-.093-1.414-.377-2.649-.766-3.556-.24-.56-.5-.948-.737-1.182C10.232 4.032 10.076 4 10 4zm3.971 5c-.089-1.546-.383-2.97-.837-4.118A6.004 6.004 0 0115.917 9h-1.946zm-2.003 2H8.032c.093 1.414.377 2.649.766 3.556.24.56.5.948.737 1.182.233.23.389.262.465.262.076 0 .232-.032.465-.262.238-.234.498-.623.737-1.182.389-.907.673-2.142.766-3.556zm1.166 4.118c.454-1.147.748-2.572.837-4.118h1.946a6.004 6.004 0 01-2.783 4.118zm-6.268 0C6.412 13.97 6.118 12.546 6.03 11H4.083a6.004 6.004 0 002.783 4.118z" clipRule="evenodd"/></svg>
+            <span className="truncate">{selectedPlace.web.replace(/^https?:\/\/(www\.)?/, '')}</span>
+          </a>
+        )}
+
+        {/* Enlace Google Maps */}
+        {selectedPlace.gmaps_url && (
+          <a
+            href={selectedPlace.gmaps_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2.5 flex items-center justify-center gap-1.5 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 rounded-lg text-gray-600 transition-colors font-medium"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/></svg>
+            Ver en Google Maps
+          </a>
+        )}
       </div>
-      <div className="mt-1.5 flex items-center gap-1.5">
-        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: getColor(selectedPlace.capa, selectedPlace.mapa) }} />
-        <span className="text-gray-600">{MAP_LABELS[selectedPlace.mapa] ?? selectedPlace.mapa}</span>
-      </div>
-      {selectedPlace.capa      && <p className="mt-0.5 text-gray-500 pl-3.5">{selectedPlace.capa}</p>}
-      {selectedPlace.categoria && <p className="mt-0.5 text-gray-500 pl-3.5">{selectedPlace.categoria}</p>}
-      {selectedPlace.dist !== Infinity && (
-        <p className="mt-0.5 text-gray-400 pl-3.5">{fmtDist(selectedPlace.dist)} de distancia</p>
-      )}
-      {selectedPlace.direccion && (
-        <p className="mt-0.5 text-gray-400 pl-3.5 leading-tight">{selectedPlace.direccion}</p>
-      )}
-    </div>
-  );
+    );
+  })();
 
   function placeList(sentinel: React.RefObject<HTMLDivElement>) {
     return (
@@ -292,6 +361,13 @@ export default function MapApp() {
                       <p className="text-xs text-gray-400 truncate mt-0.5">
                         {[p.categoria, MAP_LABELS[p.mapa] ?? p.mapa].filter(Boolean).join(" · ")}
                       </p>
+                      {(p.gf_nivel || p.certificado === "si") && (
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {p.gf_nivel === "100%" && <span className="text-[10px] px-1 py-0.5 rounded bg-green-100 text-green-700 font-medium leading-none">100%</span>}
+                          {p.gf_nivel === "opciones" && <span className="text-[10px] px-1 py-0.5 rounded bg-blue-100 text-blue-700 font-medium leading-none">GF</span>}
+                          {p.certificado === "si" && <span className="text-[10px] px-1 py-0.5 rounded bg-amber-100 text-amber-700 font-medium leading-none">✓</span>}
+                        </div>
+                      )}
                     </div>
                     {p.dist !== Infinity && (
                       <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">{fmtDist(p.dist)}</span>
