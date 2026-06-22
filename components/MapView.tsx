@@ -24,7 +24,7 @@ function MapController({ target }: { target: [number, number, number] | null }) 
 
 export default function MapView({ places, layerColors, selectedPlace, onSelect, userPosition, flyTarget }: Props) {
   return (
-    <MapContainer center={[28, -15.4]} zoom={9} style={{ height: "100%", width: "100%" }}>
+    <MapContainer center={[28, -15.4]} zoom={9} preferCanvas style={{ height: "100%", width: "100%" }}>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -50,7 +50,7 @@ export default function MapView({ places, layerColors, selectedPlace, onSelect, 
         </>
       )}
 
-      <MarkerClusterGroup chunkedLoading>
+      <MarkerClusterGroup chunkedLoading disableClusteringAtZoom={14}>
         {places.map((p, i) => {
           const isSelected =
             selectedPlace?.nombre === p.nombre &&
@@ -61,11 +61,11 @@ export default function MapView({ places, layerColors, selectedPlace, onSelect, 
             <CircleMarker
               key={i}
               center={[p.lat, p.lng]}
-              radius={isSelected ? 10 : 7}
+              radius={isSelected ? 12 : 8}
               pathOptions={{
-                color: isSelected ? "#000" : color,
+                color: "#fff",
                 fillColor: color,
-                fillOpacity: isSelected ? 1 : 0.85,
+                fillOpacity: isSelected ? 1 : 0.9,
                 weight: isSelected ? 3 : 1.5,
               }}
               eventHandlers={{ click: () => onSelect(p) }}
