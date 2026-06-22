@@ -1,27 +1,55 @@
 "use client";
 
-import { MapContainer, TileLayer, Popup, CircleMarker } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Popup, CircleMarker, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
-import { type Place } from "./MapApp";
+import { type PlaceWithDist } from "./MapApp";
 
 type Props = {
-  places: Place[];
+  places: PlaceWithDist[];
   layerColors: Record<string, string>;
-  selectedPlace: Place | null;
-  onSelect: (place: Place) => void;
+  selectedPlace: PlaceWithDist | null;
+  onSelect: (place: PlaceWithDist) => void;
+  userPosition: [number, number] | null;
+  flyTarget: [number, number, number] | null;
 };
 
-export default function MapView({ places, layerColors, selectedPlace, onSelect }: Props) {
+function MapController({ target }: { target: [number, number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo([target[0], target[1]], target[2], { duration: 1.2 });
+  }, [target, map]);
+  return null;
+}
+
+export default function MapView({ places, layerColors, selectedPlace, onSelect, userPosition, flyTarget }: Props) {
   return (
-    <MapContainer
-      center={[20, 0]}
-      zoom={2}
-      style={{ height: "100%", width: "100%" }}
-    >
+    <MapContainer center={[28, -15.4]} zoom={9} style={{ height: "100%", width: "100%" }}>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <MapController target={flyTarget} />
+
+      {/* User position */}
+      {userPosition && (
+        <>
+          <CircleMarker
+            center={userPosition}
+            radius={14}
+            pathOptions={{ color: "#3b82f6", fillColor: "#3b82f6", fillOpacity: 0.15, weight: 0 }}
+            className="user-pulse"
+          />
+          <CircleMarker
+            center={userPosition}
+            radius={6}
+            pathOptions={{ color: "#fff", fillColor: "#3b82f6", fillOpacity: 1, weight: 2.5 }}
+          >
+            <Popup><span className="text-sm font-medium">Tu ubicación</span></Popup>
+          </CircleMarker>
+        </>
+      )}
+
       <MarkerClusterGroup chunkedLoading>
         {places.map((p, i) => {
           const isSelected =
