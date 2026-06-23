@@ -74,6 +74,70 @@ def _norm(name: str) -> str:
     return name.lower().strip()
 
 
+_GF_CAT_RE = re.compile(
+    r"^(opciones?cert|100%\s*cert|opciones?|100%(\s*sin\s*gluten)?)$",
+    re.IGNORECASE,
+)
+
+_CAT_WORD_MAP: dict[str, str] = {
+    # Género masculino → femenino
+    "Mediterráneo":  "Mediterránea",
+    "Mediteránea":   "Mediterránea",   # errata
+    "Italiano":      "Italiana",
+    "Mexicano":      "Mexicana",
+    "Asiático":      "Asiática",
+    "Japonés":       "Japonesa",
+    "Latino":        "Latina",
+    "Tailandés":     "Tailandesa",
+    # Erratas
+    "Pasteleria":    "Pastelería",
+    "Panaderia":     "Panadería",
+    "Patelería":     "Pastelería",
+    "Piza":          "Pizza",
+    "Pizzas":        "Pizza",
+    "Heladerías":    "Heladería",
+    "Desayunos":     "Desayuno",
+    # Inglés → castellano
+    "Burger":        "Hamburguesería",
+    "Burgers":       "Hamburguesería",
+    "Healthy":       "Saludable",
+    "Bakery":        "Panadería",
+    # Semántico
+    "Comida Vegana":    "Vegana",
+    "Comida Saludable": "Saludable",
+    "Healthy Brunch":   "Brunch",
+}
+
+
+def _norm_categoria(raw: str) -> str:
+    """Normaliza categoría: elimina indicadores GF, corrige género/erratas, ordena compuestos."""
+    c = re.sub(r"\s+", " ", raw).strip()
+    if not c:
+        return ""
+    # 1. Indicadores de certificación GF → vacío (ya están en gf_nivel / certificado)
+    if _GF_CAT_RE.match(c):
+        return ""
+    # 2. Sustituciones de frase completa antes de partir
+    c = _CAT_WORD_MAP.get(c, c)
+    if not c:
+        return ""
+    # 3. Arregla "Take, Away" mal separado
+    c = re.sub(r"Take,\s*Away", "Take Away", c, flags=re.IGNORECASE)
+    # 4. "Tapas Y Mediterránea" → conjunción como separador
+    c = re.sub(r"\s+[Yy]\s+", ", ", c)
+    # 5. Normaliza separadores a coma
+    c = c.replace(" | ", ", ").replace("|", ", ").replace("/", ", ")
+    # 6. Partir, title-case, word map individual
+    parts: list[str] = []
+    for p in c.split(","):
+        p = p.strip().title()
+        p = _CAT_WORD_MAP.get(p, p)
+        if p and p not in parts:
+            parts.append(p)
+    parts.sort()
+    return ", ".join(parts)
+
+
 def read_csv(path):
     p = Path(path)
     if not p.exists():
@@ -137,6 +201,7 @@ def _enrich(row: dict) -> dict:
 
     return {
         **row,
+        "categoria":   _norm_categoria(row.get("categoria", "")),
         "gf_nivel":    row.get("gf_nivel")    or gf_nivel,
         "certificado": row.get("certificado") or certificado,
         "gmaps_url":   row.get("gmaps_url")   or gmaps,
