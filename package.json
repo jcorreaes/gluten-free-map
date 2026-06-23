@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "fuse.js": "^7.4.2",
     "leaflet": "^1.9.4",
     "next": "16.2.9",
     "papaparse": "^5.5.4",

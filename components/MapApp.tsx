@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import Papa from "papaparse";
+import Fuse from "fuse.js";
 import dynamic from "next/dynamic";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false });
@@ -76,8 +77,8 @@ export default function MapApp() {
   const [mobileView, setMobileView]     = useState<"mapa" | "lista">("mapa");
   const [radiusKm, setRadiusKm]         = useState(60);
   const [searchPos, setSearchPos]       = useState<[number, number] | null>(null);
-  const [locationQuery, setLocationQuery] = useState("");
   const [locationSuggestions, setLocationSuggestions] = useState<Array<{ lat: number; lng: number; label: string }>>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [route, setRoute]               = useState<[number, number][] | null>(null);
   const [routeInfo, setRouteInfo]       = useState<{ duration: number; distance: number } | null>(null);
   const [routeMode, setRouteMode]       = useState<"foot" | "driving">("foot");
@@ -140,6 +141,21 @@ export default function MapApp() {
     return () => navigator.geolocation.clearWatch(id);
   }, []);
 
+  const fuse = useMemo(
+    () => new Fuse(places, { keys: ["nombre"], threshold: 0.35, ignoreLocation: true }),
+    [places]
+  );
+
+  const fuseResults = useMemo(() => {
+    if (!search) return [];
+    return fuse.search(search, { limit: 50 });
+  }, [fuse, search]);
+
+  const fuzzyMatchIds = useMemo(() =>
+    fuseResults.length ? new Set(fuseResults.map((r) => r.refIndex)) : null,
+    [fuseResults]
+  );
+
   const withDist = useMemo<PlaceWithDist[]>(() => {
     const ref = searchPos ?? userPos;
     return places.map((p) => ({
@@ -148,18 +164,23 @@ export default function MapApp() {
     }));
   }, [places, searchPos, userPos]);
 
+  const placeSuggestions = useMemo(() =>
+    fuseResults.slice(0, 5).map((r) => ({ place: withDist[r.refIndex], refIndex: r.refIndex })).filter((r) => r.place),
+    [fuseResults, withDist]
+  );
+
   const filtered = useMemo(() =>
     withDist
-      .filter((p) => {
+      .filter((p, i) => {
         if (p.dist !== Infinity && p.dist > radiusKm) return false;
         if (selectedMaps.size && !selectedMaps.has(p.mapa)) return false;
         if (selectedLayers.size && !selectedLayers.has(p.capa)) return false;
         if (selectedCats.size && !selectedCats.has(p.categoria?.trim())) return false;
-        if (search && !p.nombre.toLowerCase().includes(search.toLowerCase())) return false;
+        if (fuzzyMatchIds && !fuzzyMatchIds.has(i)) return false;
         return true;
       })
       .sort((a, b) => a.dist - b.dist),
-    [withDist, selectedMaps, selectedLayers, selectedCats, search, radiusKm]
+    [withDist, selectedMaps, selectedLayers, selectedCats, fuzzyMatchIds, radiusKm]
   );
 
   // Derived from paired state: resets to 0 when filter criteria change without an effect
@@ -205,13 +226,13 @@ export default function MapApp() {
 
   // ── Location search (Nominatim) ───────────────────────────────────────────────
 
-  function handleLocationChange(q: string) {
-    setLocationQuery(q);
+  function handleSearchChange(q: string) {
+    setSearch(q);
     if (locationDebounce.current) clearTimeout(locationDebounce.current);
     if (q.length < 3) { setLocationSuggestions([]); return; }
     locationDebounce.current = setTimeout(() => {
       fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5`,
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=3`,
         { headers: { "Accept-Language": "es,en" } }
       )
         .then((r) => r.json())
@@ -228,14 +249,14 @@ export default function MapApp() {
 
   function selectLocation(s: { lat: number; lng: number; label: string }) {
     setSearchPos([s.lat, s.lng]);
-    setLocationQuery(s.label.split(",").slice(0, 2).join(",").trim());
+    setSearch("");
     setLocationSuggestions([]);
+    setSearchFocused(false);
     setFlyTarget([s.lat, s.lng, 13]);
   }
 
   function clearLocation() {
     setSearchPos(null);
-    setLocationQuery("");
     setLocationSuggestions([]);
   }
 
@@ -293,15 +314,6 @@ export default function MapApp() {
         <button type="button" onClick={() => setFiltersOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
       </div>
 
-      <div className="p-3">
-        <input
-          type="search"
-          placeholder="Buscar por nombre..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-      </div>
 
       <div className="px-3 pb-3 border-t border-gray-100 pt-2">
         <div className="flex items-center justify-between mb-1">
@@ -639,35 +651,65 @@ export default function MapApp() {
       <div className="md:hidden fixed top-0 inset-x-0 z-[1002] px-3 pt-3 pb-2">
         <div className="flex items-center gap-2">
 
-          {/* Location search */}
+          {/* Unified search */}
           <div className="flex-1 relative">
             <div className="flex items-center h-10 rounded-full pl-3 pr-2 gap-2 bg-white/50 backdrop-blur-md border border-white/70 shadow-sm transition-all duration-200 focus-within:bg-white/92 focus-within:border-gray-200 focus-within:shadow-md">
               <svg className="w-4 h-4 text-gray-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
               </svg>
               <input
-                type="text"
-                placeholder="Buscar zona…"
-                value={locationQuery}
-                onChange={(e) => handleLocationChange(e.target.value)}
+                type="search"
+                placeholder="Buscar lugar o zona…"
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
                 className="flex-1 text-sm bg-transparent outline-none min-w-0 text-gray-800 placeholder-gray-400"
               />
-              {searchPos && (
-                <button type="button" onClick={clearLocation} className="text-gray-400 leading-none flex-shrink-0 px-1">✕</button>
+              {(search || searchPos) && (
+                <button type="button" onClick={() => { setSearch(""); clearLocation(); }} className="text-gray-400 leading-none flex-shrink-0 px-1">✕</button>
               )}
             </div>
-            {locationSuggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                {locationSuggestions.map((s, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => selectLocation(s)}
-                    className="w-full text-left px-4 py-2.5 text-xs text-gray-700 border-b border-gray-50 last:border-0 active:bg-gray-50"
-                  >
-                    {s.label.split(",").slice(0, 3).join(", ")}
-                  </button>
-                ))}
+
+            {searchFocused && (placeSuggestions.length > 0 || locationSuggestions.length > 0) && (
+              <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 z-[1100]">
+                {placeSuggestions.length > 0 && (
+                  <>
+                    <p className="px-4 pt-2.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Lugares</p>
+                    {placeSuggestions.map(({ place }) => (
+                      <button
+                        key={`${place.lat}-${place.lng}`}
+                        type="button"
+                        onMouseDown={() => {
+                          handleSelectPlace(place);
+                          setSearchFocused(false);
+                          setMobileView("mapa");
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs text-gray-800 hover:bg-gray-50 flex items-center gap-2"
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: getColor(place.capa, place.mapa) }} />
+                        <span className="truncate">{place.nombre}</span>
+                        {place.dist !== Infinity && <span className="ml-auto flex-shrink-0 text-gray-400">{fmtDist(place.dist)}</span>}
+                      </button>
+                    ))}
+                  </>
+                )}
+                {locationSuggestions.length > 0 && (
+                  <>
+                    <p className="px-4 pt-2.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wide border-t border-gray-50">Zonas</p>
+                    {locationSuggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onMouseDown={() => selectLocation(s)}
+                        className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 border-b border-gray-50 last:border-0"
+                      >
+                        <svg className="w-3 h-3 text-gray-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>
+                        <span className="truncate">{s.label.split(",").slice(0, 3).join(", ")}</span>
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
